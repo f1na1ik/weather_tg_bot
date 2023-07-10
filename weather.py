@@ -1,9 +1,7 @@
 import datetime
 from datetime import datetime
-from datetime import timezone
 
 import requests
-import time
 from config import OPENWEATHER_TOKEN
 from pytemperature import k2c
 
@@ -57,6 +55,7 @@ def get_current_weather(lat_city, lon_city):
 
 def get_5day_forecast(lat_city, lon_city):
     url = f'https://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&appid={OPENWEATHER_TOKEN}&units=metric&lang=ru'
+    forecast_by_day = {}
     attempts = 3
     print(url)
     for i in range(attempts):
@@ -68,8 +67,13 @@ def get_5day_forecast(lat_city, lon_city):
             sunset = datetime.fromtimestamp(data['city']['sunset'])
             print(f'Закат солнца {sunset}')
             print(f'Популяция города/села {population} чел.')
-
-
+            # for i in data['list']:
+            #     print(datetime.fromtimestamp(i['dt']), '__', (i['main']['temp']), '__', i['weather'][0]['description'])
+            # break
+            for forecast in data['list']:
+                date = datetime.fromtimestamp(forecast['dt']).date()
+                print(date)
+                #----------utu ostanovilsya----------------------
             break
         except requests.exceptions.Timeout:
             print(f'Ошибка таймаута при {i + 1} попытке из {attempts}')
