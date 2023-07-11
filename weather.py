@@ -72,9 +72,17 @@ def get_5day_forecast(lat_city, lon_city):
             # break
             for forecast in data['list']:
                 date = datetime.fromtimestamp(forecast['dt']).date()
-                print(date)
-                #----------utu ostanovilsya----------------------
+                if date not in forecast_by_day:
+                    forecast_by_day[date] = []
+                forecast_by_day[date].append(forecast)
+            #print(forecast_by_day.items())
+            for date, forecasts in forecast_by_day.items():
+                print(f'Дата: {date}')
+                #print(forecasts)
+                for forecast in forecasts:
+                    print(f'В {datetime.fromtimestamp(forecast["dt"]).strftime("%H:%M")} часов Температура будет: {forecast["main"]["temp"]}, но ощущаться будет как {forecast["main"]["feels_like"]}')
             break
+
         except requests.exceptions.Timeout:
             print(f'Ошибка таймаута при {i + 1} попытке из {attempts}')
         except Exception as e:
