@@ -1,5 +1,5 @@
 import datetime
-from datetime import datetime
+from datetime import datetime, date, timedelta
 
 import requests
 from config import OPENWEATHER_TOKEN
@@ -53,6 +53,7 @@ def get_current_weather(lat_city, lon_city):
         print(f'Не удалось получить данные после {attempts} попыток')
 
 
+forecast_dates = [date.today() + timedelta(days=i) for i in range(5)] #переменная для выбора погоды в боте
 def get_5day_forecast(lat_city, lon_city):
     url = f'https://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&appid={OPENWEATHER_TOKEN}&units=metric&lang=ru'
     forecast_by_day = {}
@@ -67,20 +68,23 @@ def get_5day_forecast(lat_city, lon_city):
             sunset = datetime.fromtimestamp(data['city']['sunset'])
             print(f'Закат солнца {sunset}')
             print(f'Популяция города/села {population} чел.')
-            # for i in data['list']:
-            #     print(datetime.fromtimestamp(i['dt']), '__', (i['main']['temp']), '__', i['weather'][0]['description'])
-            # break
             for forecast in data['list']:
                 date = datetime.fromtimestamp(forecast['dt']).date()
                 if date not in forecast_by_day:
                     forecast_by_day[date] = []
                 forecast_by_day[date].append(forecast)
-            #print(forecast_by_day.items())
             for date, forecasts in forecast_by_day.items():
-                print(f'Дата: {date}')
+                #print(f'Дата: {date}')
                 #print(forecasts)
                 for forecast in forecasts:
-                    print(f'В {datetime.fromtimestamp(forecast["dt"]).strftime("%H:%M")} часов Температура будет: {forecast["main"]["temp"]}, но ощущаться будет как {forecast["main"]["feels_like"]}')
+                    date_forecast = forecast["dt"]
+                    weather_description = forecast["weather"][0]["description"]
+                    temp = forecast['main']['temp']
+                    temp_feels_like = forecast['main']['feels_like']
+                    humidity = forecast["main"]["humidity"]
+                    wind_speed = forecast["wind"]["speed"]
+                    clouds_percent = forecast["clouds"]["all"]
+                    #print(f'В {datetime.fromtimestamp(date_forecast).strftime("%H:%M")} Температура будет: {temp} °C, но ощущаться будет как {temp_feels_like} °C')
             break
 
         except requests.exceptions.Timeout:
