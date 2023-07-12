@@ -54,7 +54,7 @@ def get_current_weather(lat_city, lon_city):
 
 
 forecast_dates = [date.today() + timedelta(days=i) for i in range(5)] #переменная для выбора погоды в боте
-def get_5day_forecast(lat_city, lon_city):
+def get_5day_forecast(lat_city, lon_city, forecast_date):
     url = f'https://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&appid={OPENWEATHER_TOKEN}&units=metric&lang=ru'
     forecast_by_day = {}
     attempts = 3
@@ -74,17 +74,18 @@ def get_5day_forecast(lat_city, lon_city):
                     forecast_by_day[date] = []
                 forecast_by_day[date].append(forecast)
             for date, forecasts in forecast_by_day.items():
-                #print(f'Дата: {date}')
-                #print(forecasts)
-                for forecast in forecasts:
-                    date_forecast = forecast["dt"]
-                    weather_description = forecast["weather"][0]["description"]
-                    temp = forecast['main']['temp']
-                    temp_feels_like = forecast['main']['feels_like']
-                    humidity = forecast["main"]["humidity"]
-                    wind_speed = forecast["wind"]["speed"]
-                    clouds_percent = forecast["clouds"]["all"]
-                    #print(f'В {datetime.fromtimestamp(date_forecast).strftime("%H:%M")} Температура будет: {temp} °C, но ощущаться будет как {temp_feels_like} °C')
+                if date == forecast_date:
+                    print(f'Дата: {date}')
+                    #print(forecasts)
+                    for forecast in forecasts:
+                        date_forecast = forecast["dt"]
+                        weather_description = forecast["weather"][0]["description"]
+                        temp = forecast['main']['temp']
+                        temp_feels_like = forecast['main']['feels_like']
+                        humidity = forecast["main"]["humidity"]
+                        wind_speed = forecast["wind"]["speed"]
+                        clouds_percent = forecast["clouds"]["all"]
+                        print(f'В {datetime.fromtimestamp(date_forecast).strftime("%H:%M")} Температура будет: {temp} °C, но ощущаться будет как {temp_feels_like} °C')
             break
 
         except requests.exceptions.Timeout:
@@ -99,4 +100,4 @@ def get_5day_forecast(lat_city, lon_city):
 
 lat, lon = get_lat_lon_city('Северодвинск')
 #get_current_weather(lat, lon)
-get_5day_forecast(lat, lon)
+get_5day_forecast(lat, lon, date.today() + timedelta(1))
