@@ -1,7 +1,6 @@
-from bot import get_bot
-from config import YOU_TELEGRAM_TOKEN
-
+from aiogram import executor
+from bot import dp
 
 if __name__ == '__main__':
-
+    executor.start_polling(dp)
 
