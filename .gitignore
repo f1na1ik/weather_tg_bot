@@ -5,9 +5,10 @@ __pycache__/
 config_variables.py
 # C extensions
 *.so
-.mydatabse.db
-.mydatabase_test.db
-.mydatabase_test1.db
+mydatabse.db
+mydatabase_test.db
+mydatabase_test1.db
+*.db
 # Distribution / packaging
 .Python
 build/
