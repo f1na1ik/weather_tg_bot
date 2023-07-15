@@ -15,10 +15,10 @@ def get_lat_lon_city(city_name, max_attempts = 10):
             lon = data[0]['lon']
             return lat, lon
         except requests.exceptions.Timeout:
-            print(f'Ошибка таймаута, при попытке {attempt+1}')
+            print(f'Ошибка таймаута, при попытке {attempt+1} / {city_name}')
             attempt += 1
         except Exception as e:
-            print(f'Ошибка {e}')
+            print(f'Ошибка {e} / {city_name}')
             break
     else:
         print('Не удалось получить данные')
@@ -98,6 +98,6 @@ def get_5day_forecast(lat_city, lon_city, forecast_date):
 
 
 
-lat, lon = get_lat_lon_city('Северодвинск')
+#lat, lon = get_lat_lon_city('Северодвинск')
 #get_current_weather(lat, lon)
-get_5day_forecast(lat, lon, date.today() + timedelta(1))
+#get_5day_forecast(lat, lon, date.today() + timedelta(1))

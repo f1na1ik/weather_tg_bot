@@ -1,15 +1,32 @@
 from aiogram import Bot, types
-from aiogram.dispatcher import Dispatcher
+from aiogram.dispatcher import Dispatcher, FSMContext
+from aiogram.contrib.fsm_storage.memory import MemoryStorage
+from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.utils import executor
 import logging
 from config import YOU_TELEGRAM_TOKEN
+import database
+from weather import get_lat_lon_city
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 
 # Initialize bot and dispatcher
 bot = Bot(token=YOU_TELEGRAM_TOKEN)
-dp = Dispatcher(bot)
+dp = Dispatcher(bot, storage=MemoryStorage())
+
+# Create a connection to the database
+conn = database.create_connection()
+
+# Create the table if it doesn't exist
+database.create_table(conn)
+
+
+class Form(StatesGroup):
+    city_add = State()  # Will be used to save user's city
+    city_delete = State() # Will be used to delete user's city
+
 
 # def create_start_inline_keyboard():
 #     inline_keyboard = types.InlineKeyboardMarkup()
@@ -17,15 +34,84 @@ dp = Dispatcher(bot)
 #     inline_keyboard.add(*array_of_buttons)
 #     return inline_keyboard
 
-def create_start_inline_keyboard():
+def create_back_button():
     inline_keyboard = types.InlineKeyboardMarkup()
-    button_another_city = types.InlineKeyboardButton('Ввести любой другой город')
-    
+    back_button = types.InlineKeyboardButton('⏪ Go back', callback_data='go_back')
+    inline_keyboard.add(back_button)
+    return inline_keyboard
 
+
+def create_start_inline_keyboard(user_id):
+    inline_keyboard = types.InlineKeyboardMarkup()
+    button_another_city = types.InlineKeyboardButton('🔎 Добавить город в список', callback_data='add_another_city')
+    button_delete_city = types.InlineKeyboardButton('❌ Удалить город', callback_data='delete_city')
+    user_cities = database.get_user_cities(conn, user_id)
+    buttons = []
+    for city in user_cities:
+        button_city = types.InlineKeyboardButton(city, callback_data=f'city_{city}')
+        buttons.append(button_city)
+        if len(buttons) == 3:
+            inline_keyboard.row(*buttons)
+            buttons = []
+    if buttons:
+        inline_keyboard.row(*buttons)
+    inline_keyboard.add(button_another_city)
+    inline_keyboard.add(button_delete_city)
+    return inline_keyboard
+
+def create_delete_inline_keyboard(user_id):
+    inline_keyboard = types.InlineKeyboardMarkup()
+    user_cities = database.get_user_cities(conn, user_id)
+    buttons = []
+    for city in user_cities:
+        button_city = types.InlineKeyboardButton(city, callback_data=f'city_{city}')
+        buttons.append(button_city)
+        if len(buttons) == 3:
+            inline_keyboard.row(*buttons)
+            buttons = []
+    if buttons:
+        inline_keyboard.row(*buttons)
+    back_button = types.InlineKeyboardButton('⏪ Go back', callback_data='go_back')
+    inline_keyboard.add(back_button)
+    return inline_keyboard
 
 @dp.message_handler(commands=['start', 'help'])
 async def send_welcome(message: types.Message):
-    await message.reply("Привет!\nЯ бот, который говорит прогноз погоды\nPowered by aiogram.", reply_markup=create_start_inline_keyboard())
+    database.insert_user(conn, message.from_user.id, message.from_user.username)
+    await message.reply("Привет!\nЯ бот, который сообщает прогноз погоды, либо дает инфорамцию по выбранному городу",
+                        reply_markup=create_start_inline_keyboard(message.from_user.id))
+
+
+@dp.callback_query_handler(lambda call: call.data == 'add_another_city') # Введение города при добавлении
+async def callback_add_city(callback_query: types.CallbackQuery):
+    await bot.send_message(callback_query.message.chat.id, 'Введите название города, который хотите добавить:',
+                           reply_markup=create_back_button())
+    await Form.city_add.set()
+
+@dp.callback_query_handler(lambda call: call.data == 'delete_city') # Выбор удаления города
+async def callback_add_city(callback_query: types.CallbackQuery):
+    await bot.send_message(callback_query.message.chat.id, 'Удалите город из списка',
+                           reply_markup=create_delete_inline_keyboard(callback_query.from_user.id))
+    await Form.city_delete.set()
+#----------------------- tut ostanovilsta -----------------------------
+@dp.message_handler(state=Form.city_add) # добавление города в список
+async def add_city(message: types.Message, state: FSMContext):
+    city_name = message.text
+    user_id = message.from_user.id
+    # Если запрос города что-то вернул (если существует), тогда записываем в БД.
+    if get_lat_lon_city(message.text) == None:
+        await bot.send_message(message.chat.id, 'Такого города не существует')
+    else:
+        if not database.check_city_exists(conn, city_name): #Если в БД нет такого города
+            database.insert_city(conn, city_name) # то добавляем
+            city_id = database.get_city_id(conn, message.text)  # Добавили, теперь парсим его ID
+            database.insert_selected_city_by_user(conn, user_id, city_id)  # Присваиваем город юзеру
+        else:
+            city_id = database.get_city_id(conn, message.text)  #Если такой город есть, то парсим его ID
+            database.insert_selected_city_by_user(conn, user_id, city_id)   #Присваиваем город юзеру
+    print('Дурак')
+    await bot.send_message(message.chat.id, f'Вы добавили новый город: {message.text}', reply_markup=create_start_inline_keyboard(user_id))
+    await state.finish()
 
 @dp.message_handler()
 async def echo(message: types.Message):
