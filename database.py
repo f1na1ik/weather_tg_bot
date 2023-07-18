@@ -39,7 +39,6 @@ def create_table(conn):
 
 #------------------ insert functions -------------------------
 
-
 def insert_user(conn, user_id, user_name):
     cursor = conn.cursor()
     cursor.execute("INSERT OR IGNORE INTO users VALUES (?, ?)", (user_id, user_name))
@@ -59,7 +58,6 @@ def insert_selected_city_by_user(conn, user_id, city_id):
 
 
 #----------------------- select functions -----------------------------
-
 
 def check_city_exists(conn, city_name):
     cursor = conn.cursor()
@@ -94,3 +92,10 @@ def get_user_cities(conn, user_id):
     return list(city[0] for city in data)
 
 #print(get_user_cities(create_connection(), 1945341040))
+
+#---------------------- delete functions -------------------
+
+def delete_selected_city_from_user(conn, user_id, city_id):
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM user_cities WHERE user_id = ? AND city_id = ?", [user_id, city_id])
+    conn.commit()

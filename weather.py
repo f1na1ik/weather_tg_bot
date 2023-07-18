@@ -55,7 +55,7 @@ def get_current_weather(lat_city, lon_city):
 
 forecast_dates = [date.today() + timedelta(days=i) for i in range(5)] #переменная для выбора погоды в боте
 def get_5day_forecast(lat_city, lon_city, forecast_date):
-    url = f'https://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&appid={OPENWEATHER_TOKEN}&units=metric&lang=ru'
+    url = f'https://api.openweathermap.org/data/2.5/forecast?lat={lat_city}&lon={lon_city}&appid={OPENWEATHER_TOKEN}&units=metric&lang=ru'
     forecast_by_day = {}
     attempts = 3
     print(url)
@@ -64,10 +64,11 @@ def get_5day_forecast(lat_city, lon_city, forecast_date):
             data = requests.get(url, timeout=0.2).json()
             population = data['city']['population']
             sunrise = datetime.fromtimestamp(data['city']['sunrise'])
-            print(f'Восход солнца {sunrise}')
+            #print(f'Восход солнца {sunrise}')
             sunset = datetime.fromtimestamp(data['city']['sunset'])
-            print(f'Закат солнца {sunset}')
-            print(f'Популяция города/села {population} чел.')
+            #print(f'Закат солнца {sunset}')
+            #print(f'Популяция города/села {population} чел.')
+            #print(url)
             for forecast in data['list']:
                 date = datetime.fromtimestamp(forecast['dt']).date()
                 if date not in forecast_by_day:
@@ -86,6 +87,7 @@ def get_5day_forecast(lat_city, lon_city, forecast_date):
                         wind_speed = forecast["wind"]["speed"]
                         clouds_percent = forecast["clouds"]["all"]
                         print(f'В {datetime.fromtimestamp(date_forecast).strftime("%H:%M")} Температура будет: {temp} °C, но ощущаться будет как {temp_feels_like} °C')
+            return population, sunrise, sunset
             break
 
         except requests.exceptions.Timeout:
@@ -101,3 +103,4 @@ def get_5day_forecast(lat_city, lon_city, forecast_date):
 #lat, lon = get_lat_lon_city('Северодвинск')
 #get_current_weather(lat, lon)
 #get_5day_forecast(lat, lon, date.today() + timedelta(1))
+#print(date.today() + timedelta(1))

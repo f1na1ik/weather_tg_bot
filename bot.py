@@ -6,7 +6,7 @@ from aiogram.utils import executor
 import logging
 from config import YOU_TELEGRAM_TOKEN
 import database
-from weather import get_lat_lon_city
+from weather import get_lat_lon_city, get_5day_forecast, get_current_weather, forecast_dates
 
 
 # Configure logging
@@ -82,6 +82,24 @@ async def send_welcome(message: types.Message):
                         reply_markup=create_start_inline_keyboard(message.from_user.id))
 
 
+@dp.callback_query_handler(lambda call: call.data.startswith('city_')) # Создание меню при выборе города, какую дату смотреть, инфа и т.п
+async def callback_check_info_city(callback_query: types.CallbackQuery):
+    city_name = callback_query.data[5:]
+    print(city_name)
+    lat, lon = get_lat_lon_city(city_name)
+    print(lat)
+    print(lon)
+    print(forecast_dates[1])
+    population, sunrise, sunset = get_5day_forecast(lat_city=lat, lon_city=lon, forecast_date=forecast_dates[0])
+    await bot.edit_message_text(chat_id=callback_query.message.chat.id,
+                                message_id=callback_query.message.message_id,
+                                text=f'***Популяция в этом городе:***   {format(population, ",").replace(",", " ")} чел. \n'
+                                     f'***Восход солнца:***     {sunrise.strftime("%H:%M")}\n'
+                                     f'***Закат солнца:***      {sunset.strftime("%H:%M")}',
+                                reply_markup=create_start_inline_keyboard(callback_query.from_user.id),
+                                parse_mode='Markdown')
+    #-----------------тут закончил!---------------------
+
 @dp.callback_query_handler(lambda call: call.data == 'go_back_button', state=[Form.city_delete, Form.city_add]) #обработка кнопки назад
 async def callback_back_button(callback_query: types.CallbackQuery, state: FSMContext):
     print(callback_query.data)
@@ -109,7 +127,7 @@ async def callback_add_city(callback_query: types.CallbackQuery):
     await Form.city_add.set()
 
 @dp.callback_query_handler(lambda call: call.data == 'delete_city') # Выбор удаления города
-async def callback_add_city(callback_query: types.CallbackQuery):
+async def callback_delete_city(callback_query: types.CallbackQuery):
     print(callback_query.data)
     await bot.edit_message_text(chat_id=callback_query.message.chat.id,
                                 message_id=callback_query.message.message_id,
@@ -117,13 +135,24 @@ async def callback_add_city(callback_query: types.CallbackQuery):
                                 reply_markup=create_delete_inline_keyboard(callback_query.from_user.id))
     await Form.city_delete.set()
 
+@dp.callback_query_handler(lambda call: call.data.startswith('city_'), state=Form.city_delete) #удаление города по клику
+async def delete_city(callback_query: types.CallbackQuery, state: FSMContext):
+    city_name = callback_query.data[5:] #вырезаем только название города
+    user_id = callback_query.from_user.id
+    city_id = database.get_city_id(conn, city_name)
+    database.delete_selected_city_from_user(conn, user_id, city_id) #удаление города у юзера в бд
+    await bot.edit_message_text(chat_id=callback_query.message.chat.id,
+                                message_id=callback_query.message.message_id,
+                                text=f'Вы успешно удалили город {city_name}\nМожете пользоваться ботом дальше.',
+                                reply_markup=create_start_inline_keyboard(callback_query.from_user.id))
+    await state.finish()
+
 
 @dp.message_handler(state=Form.city_add) # добавление города в список
 async def add_city(message: types.Message, state: FSMContext):
     city_name = message.text
     user_id = message.from_user.id
-    # Если запрос города что-то вернул (если существует), тогда записываем в БД.
-    if get_lat_lon_city(message.text) == None:
+    if get_lat_lon_city(message.text) == None: #Если запрос города что-то вернул (если существует), тогда записываем в БД.
         await bot.send_message(message.chat.id, 'Такого города не существует')
     else:
         if not database.check_city_exists(conn, city_name): #Если в БД нет такого города
@@ -133,7 +162,7 @@ async def add_city(message: types.Message, state: FSMContext):
         else:
             city_id = database.get_city_id(conn, message.text)  #Если такой город есть, то парсим его ID
             database.insert_selected_city_by_user(conn, user_id, city_id)   #Присваиваем город юзеру
-    await bot.send_message(message.chat.id, f'Вы добавили новый город: {message.text}', reply_markup=create_start_inline_keyboard(user_id))
+    await bot.send_message(message.chat.id, f'Вы добавили новый город: {message.text}\nВыберите, где хотите посмотреть погоду.', reply_markup=create_start_inline_keyboard(user_id))
     await state.finish()
 
 
