@@ -5,6 +5,15 @@ import requests
 from config import OPENWEATHER_TOKEN
 from pytemperature import k2c
 
+class CurrentWeatherData:
+    def __init__(self, description, temp, temps_feels_like, humidity, wind_speed, clouds):
+        self.description = description
+        self.temp = temp
+        self.temps_feels_like = temps_feels_like
+        self.humidity = humidity
+        self.wind_speed = wind_speed
+        self.clouds = clouds
+
 def get_lat_lon_city(city_name, max_attempts = 10):
     url = f'http://api.openweathermap.org/geo/1.0/direct?q={city_name}&limit={1}&appid={OPENWEATHER_TOKEN}'
     attempt = 0
@@ -25,25 +34,21 @@ def get_lat_lon_city(city_name, max_attempts = 10):
 
 
 def get_current_weather(lat_city, lon_city):
-    url = f'https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={OPENWEATHER_TOKEN}&lang=ru'
+    url = f'https://api.openweathermap.org/data/2.5/weather?lat={lat_city}&lon={lon_city}&appid={OPENWEATHER_TOKEN}&lang=ru'
     attempts = 10
 
     for i in range(attempts):
         try:
             print(url)
             data = requests.get(url, timeout=0.2).json()
-            print(data)
+            #print(data)
             current_weather_description = data["weather"][0]["description"]
             current_temp = k2c(data['main']['temp'])
             current_temp_feels_like = k2c(data['main']['feels_like'])
             current_humidity = data["main"]["humidity"]
             current_wind_speed = data["wind"]["speed"]
             current_clouds_percent = data["clouds"]["all"]
-            # print(f'В северодвинске сейчас {current_weather_description}')
-            # print(f'В северодвинске сейчас {current_temp:.1f} °C, но ощущается как {current_temp_feels_like:.1f} °C')
-            # print(f'Влажность {current_humidity} %')
-            # print(f'Скорость ветра {current_wind_speed} м/с')
-            # print(f'Облачность {current_clouds_percent} %')
+            return CurrentWeatherData(current_weather_description, current_temp, current_temp_feels_like, current_humidity, current_wind_speed, current_clouds_percent)
             break
         except requests.exceptions.Timeout:
             print(f'Ошибка таймаута при {i+1} попытке из {attempts}')
@@ -57,18 +62,14 @@ forecast_dates = [date.today() + timedelta(days=i) for i in range(5)] #пере�
 def get_5day_forecast(lat_city, lon_city, forecast_date):
     url = f'https://api.openweathermap.org/data/2.5/forecast?lat={lat_city}&lon={lon_city}&appid={OPENWEATHER_TOKEN}&units=metric&lang=ru'
     forecast_by_day = {}
-    attempts = 3
+    attempts = 10
     print(url)
     for i in range(attempts):
         try:
             data = requests.get(url, timeout=0.2).json()
             population = data['city']['population']
             sunrise = datetime.fromtimestamp(data['city']['sunrise'])
-            #print(f'Восход солнца {sunrise}')
             sunset = datetime.fromtimestamp(data['city']['sunset'])
-            #print(f'Закат солнца {sunset}')
-            #print(f'Популяция города/села {population} чел.')
-            #print(url)
             for forecast in data['list']:
                 date = datetime.fromtimestamp(forecast['dt']).date()
                 if date not in forecast_by_day:
