@@ -80,7 +80,7 @@ def create_days_info_buttons():
     buttons = [] #список для хранения кнопок
     for i in range(1,5):
         day = datetime.now() + timedelta(days=i)
-        button_day = types.InlineKeyboardButton(f'На {day.strftime("%d.%m")}', callback_data=f'weather_{day.strftime("%d:%m")}')
+        button_day = types.InlineKeyboardButton(f'На {day.strftime("%d.%m")}', callback_data=f'weather_{day.strftime("%Y-%m-%d")}')
         buttons.append(button_day)
         if len(buttons) == 2:
             inline_keyboard.row(*buttons)
@@ -116,22 +116,27 @@ async def callback_check_info_city(callback_query: types.CallbackQuery, state: F
     await state.update_data(current_city=city_name, current_lat=lat, current_lon=lon)  # записываем какой город выбрали
 
 
-@dp.callback_query_handler(lambda call: call.data == 'current_weather_button')  # обработка кнопки текущей погоды у определенного города
+@dp.callback_query_handler(lambda call: call.data == 'current_weather_button' or call.data.startswith('weather_'))  # обработка кнопки текущей погоды у определенного города
 async def callback_current_city_info(callback_query: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
     city_name = data.get('current_city')
     lat = data.get('current_lat')
     lon = data.get('current_lon')
-    current_weather = get_current_weather(lat, lon)
-    await bot.send_message(chat_id=callback_query.message.chat.id,
-                           text=f'***В {city_name} сейчас*** {current_weather.temp:.1f} °C, ***но '
-                                f'ощущается как ***{current_weather.temps_feels_like:.1f}°C '
-                                f'***Скорость ветра*** {current_weather.wind_speed} м/c, ***влажность*** {current_weather.humidity}%, '
-                                f'***облачность*** {current_weather.clouds} %\n'
-                                f'Можете посмотреть еще погоду, либо вернуться в меню',
-                           reply_markup=create_days_info_buttons(),
-                           parse_mode='Markdown')
-
+    if callback_query.data == 'current_weather_button':
+        current_weather = get_current_weather(lat, lon)
+        await bot.send_message(chat_id=callback_query.message.chat.id,
+                               text=f'***В {city_name} сейчас*** {current_weather.temp:.1f} °C, ***но '
+                                    f'ощущается как ***{current_weather.temps_feels_like:.1f}°C '
+                                    f'***Скорость ветра*** {current_weather.wind_speed} м/c, ***влажность*** {current_weather.humidity}%, '
+                                    f'***облачность*** {current_weather.clouds} %\n'
+                                    f'Можете посмотреть еще погоду, либо вернуться в меню',
+                               reply_markup=create_days_info_buttons(),
+                               parse_mode='Markdown')
+    if callback_query.data.startswith('weather_'):
+        data_day = callback_query.data[8:]
+        print(data_day)
+        #get_5day_forecast(lat)
+        print(get_5day_forecast(lat, lon, data_day))
 
 @dp.callback_query_handler(lambda call: call.data == 'go_back_button',)  # обработка кнопки назад
 async def callback_back_button(callback_query: types.CallbackQuery, state: FSMContext):

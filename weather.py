@@ -77,7 +77,7 @@ def get_5day_forecast(lat_city, lon_city, forecast_date):
                 forecast_by_day[date].append(forecast)
             for date, forecasts in forecast_by_day.items():
                 if date == forecast_date:
-                    print(f'Дата: {date}')
+                    #print(f'Дата: {date}')
                     #print(forecasts)
                     for forecast in forecasts:
                         date_forecast = forecast["dt"]
@@ -87,7 +87,7 @@ def get_5day_forecast(lat_city, lon_city, forecast_date):
                         humidity = forecast["main"]["humidity"]
                         wind_speed = forecast["wind"]["speed"]
                         clouds_percent = forecast["clouds"]["all"]
-                        print(f'В {datetime.fromtimestamp(date_forecast).strftime("%H:%M")} Температура будет: {temp} °C, но ощущаться будет как {temp_feels_like} °C')
+                        #print(f'В {datetime.fromtimestamp(date_forecast).strftime("%H:%M")} Температура будет: {temp} °C, но ощущаться будет как {temp_feels_like} °C')
             return population, sunrise, sunset
             break
 
