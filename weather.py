@@ -63,13 +63,14 @@ def get_5day_forecast(lat_city, lon_city, forecast_date):
     url = f'https://api.openweathermap.org/data/2.5/forecast?lat={lat_city}&lon={lon_city}&appid={OPENWEATHER_TOKEN}&units=metric&lang=ru'
     forecast_by_day = {}
     attempts = 10
-    print(url)
+    #print(url)
     for i in range(attempts):
         try:
             data = requests.get(url, timeout=0.2).json()
             population = data['city']['population']
             sunrise = datetime.fromtimestamp(data['city']['sunrise'])
             sunset = datetime.fromtimestamp(data['city']['sunset'])
+            forecast_data = {}
             for forecast in data['list']:
                 date = datetime.fromtimestamp(forecast['dt']).date()
                 if date not in forecast_by_day:
@@ -79,6 +80,7 @@ def get_5day_forecast(lat_city, lon_city, forecast_date):
                 if date == forecast_date:
                     #print(f'Дата: {date}')
                     #print(forecasts)
+                    #print(forecast_date)
                     for forecast in forecasts:
                         date_forecast = forecast["dt"]
                         weather_description = forecast["weather"][0]["description"]
@@ -87,10 +89,17 @@ def get_5day_forecast(lat_city, lon_city, forecast_date):
                         humidity = forecast["main"]["humidity"]
                         wind_speed = forecast["wind"]["speed"]
                         clouds_percent = forecast["clouds"]["all"]
+                        forecast_data[date_forecast] = {
+                            "weather_description": weather_description,
+                            "temp": temp,
+                            "temp_feels_like": temp_feels_like,
+                            "humidity": humidity,
+                            "wind_speed": wind_speed,
+                            "clouds_percent": clouds_percent
+                        }
                         #print(f'В {datetime.fromtimestamp(date_forecast).strftime("%H:%M")} Температура будет: {temp} °C, но ощущаться будет как {temp_feels_like} °C')
-            return population, sunrise, sunset
+            return population, sunrise, sunset, forecast_data
             break
-
         except requests.exceptions.Timeout:
             print(f'Ошибка таймаута при {i + 1} попытке из {attempts}')
         except Exception as e:

@@ -95,7 +95,7 @@ def create_days_info_buttons():
 @dp.message_handler(commands=['start', 'help'])
 async def send_welcome(message: types.Message):
     database.insert_user(conn, message.from_user.id, message.from_user.username)
-    await message.reply("Привет!\nЯ бот, который сообщает прогноз погоды, либо дает инфорамцию по выбранному городу",
+    await message.reply("Привет!\nЯ бот, который сообщает прогноз погоды, либо дает инфорамцию по выбранному городу\n Добавь город в список чтобы следить за ним!",
                         reply_markup=create_start_inline_keyboard(message.from_user.id))
 
 
@@ -104,7 +104,7 @@ async def callback_check_info_city(callback_query: types.CallbackQuery, state: F
     print(callback_query.data)
     city_name = callback_query.data[5:]
     lat, lon = get_lat_lon_city(city_name)
-    population, sunrise, sunset = get_5day_forecast(lat_city=lat, lon_city=lon, forecast_date=date.today())
+    population, sunrise, sunset, forecast_data = get_5day_forecast(lat_city=lat, lon_city=lon, forecast_date=date.today())
     await bot.edit_message_text(chat_id=callback_query.message.chat.id,
                                 message_id=callback_query.message.message_id,
                                 text=f'***Популяция в городе {city_name}:***   {format(population, ",").replace(",", " ")} чел. \n'
@@ -116,31 +116,64 @@ async def callback_check_info_city(callback_query: types.CallbackQuery, state: F
     await state.update_data(current_city=city_name, current_lat=lat, current_lon=lon)  # записываем какой город выбрали
 
 
-@dp.callback_query_handler(lambda call: call.data == 'current_weather_button' or call.data.startswith('weather_'))  # обработка кнопки текущей погоды у определенного города
+@dp.callback_query_handler(lambda call: call.data == 'current_weather_button' or call.data.startswith('weather_')
+                                  or call.data == 'current_weather_day_button')  # обработка кнопки текущей погоды у определенного города
 async def callback_current_city_info(callback_query: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
     city_name = data.get('current_city')
+    print(f'{callback_query.data} {city_name}')
     lat = data.get('current_lat')
     lon = data.get('current_lon')
     if callback_query.data == 'current_weather_button':
         current_weather = get_current_weather(lat, lon)
         await bot.send_message(chat_id=callback_query.message.chat.id,
                                text=f'***В {city_name} сейчас*** {current_weather.temp:.1f} °C, ***но '
-                                    f'ощущается как ***{current_weather.temps_feels_like:.1f}°C '
+                                    f'ощущается как ***{current_weather.temps_feels_like:.1f}°C \n'
+                                    f'***В целом {current_weather.description}***\n'
                                     f'***Скорость ветра*** {current_weather.wind_speed} м/c, ***влажность*** {current_weather.humidity}%, '
-                                    f'***облачность*** {current_weather.clouds} %\n'
-                                    f'Можете посмотреть еще погоду, либо вернуться в меню',
+                                    f'***облачность*** {current_weather.clouds} %\n',
                                reply_markup=create_days_info_buttons(),
                                parse_mode='Markdown')
-    if callback_query.data.startswith('weather_'):
+
+    elif callback_query.data.startswith('weather_'):
         data_day = callback_query.data[8:]
-        print(data_day)
-        #get_5day_forecast(lat)
-        print(get_5day_forecast(lat, lon, data_day))
+        data_day = datetime.strptime(data_day, '%Y-%m-%d').date()
+        population, sunrise, sunset, forecast_data = get_5day_forecast(lat, lon, data_day)
+        message = ''
+        for timestamp, forecast in forecast_data.items():
+            message += f'***В {datetime.fromtimestamp(timestamp).strftime("%H:%M")} температура будет: ***{forecast["temp"]:.1f} °C, ' \
+                       f'***а ощущаться на ***{forecast["temp_feels_like"]:.1f} °C\n' \
+                       f'***В целом {forecast["weather_description"]} ***\n' \
+                       f'***Скорость ветра*** {forecast["wind_speed"]} м/c, ***влажность*** {forecast["humidity"]}%, \n' \
+                       f'***облачность*** {forecast["clouds_percent"]} %\n\n'
+        await bot.send_message(chat_id=callback_query.message.chat.id,
+                               text=f'***Прогноз погоды на {data_day.strftime("%d-%m-%Y")} в городе {city_name}:*** \n\n{message}',reply_markup=create_days_info_buttons(),
+                               parse_mode='Markdown')
+
+    elif callback_query.data == 'current_weather_day_button':
+        population, sunrise, sunset, forecast_data = get_5day_forecast(lat, lon, date.today())
+        message = ''
+        for timestamp, forecast in forecast_data.items():
+            message += f'***В {datetime.fromtimestamp(timestamp).strftime("%H:%M")} температура будет: ***{forecast["temp"]:.1f} °C, ' \
+                       f'***а ощущаться на ***{forecast["temp_feels_like"]:.1f} °C\n' \
+                       f'***В целом {forecast["weather_description"]} ***\n' \
+                       f'***Скорость ветра*** {forecast["wind_speed"]} м/c, ***влажность*** {forecast["humidity"]}%, \n' \
+                       f'***облачность*** {forecast["clouds_percent"]} %\n\n'
+            # f'***Скорость ветра*** {forecast["wind_speed"]} м/c, ***влажность*** {forecast["humidity"]}%, '
+        await bot.send_message(chat_id=callback_query.message.chat.id,
+                               text=f'***Прогноз погоды на {date.today().strftime("%d-%m-%Y")} в городе {city_name}:*** \n\n{message}',
+                               reply_markup=create_days_info_buttons(),
+                               parse_mode='Markdown')
+    else:
+        await bot.send_message(chat_id=callback_query.message.chat.id,
+                               text=f'На текущий день прогноза нет, походу сейчас больше чем 21:00, смотри на следующий день.',
+                               reply_markup=create_days_info_buttons(),
+                               parse_mode='Markdown')
+
 
 @dp.callback_query_handler(lambda call: call.data == 'go_back_button',)  # обработка кнопки назад
 async def callback_back_button(callback_query: types.CallbackQuery, state: FSMContext):
-
+    print(callback_query.data)
     await bot.send_message(chat_id=callback_query.message.chat.id,
                            text='Вы вернулись в меню.\nВыберите город',
                            reply_markup=create_start_inline_keyboard(callback_query.from_user.id))
@@ -187,6 +220,7 @@ async def callback_delete_city(callback_query: types.CallbackQuery):
                            state=Form.city_delete)  # удаление города по клику
 async def delete_city(callback_query: types.CallbackQuery, state: FSMContext):
     city_name = callback_query.data[5:]  # вырезаем только название города
+    print(f'delete {callback_query.data} {city_name}')
     user_id = callback_query.from_user.id
     city_id = database.get_city_id(conn, city_name)
     database.delete_selected_city_from_user(conn, user_id, city_id)  # удаление города у юзера в бд
@@ -200,9 +234,9 @@ async def delete_city(callback_query: types.CallbackQuery, state: FSMContext):
 @dp.message_handler(state=Form.city_add)  # добавление города в список
 async def add_city(message: types.Message, state: FSMContext):
     city_name = message.text
+    print(f'Add {message.text}')
     user_id = message.from_user.id
-    if get_lat_lon_city(
-            message.text) == None:  # Если запрос города что-то вернул (если существует), тогда записываем в БД.
+    if get_lat_lon_city(message.text) == None:  # Если запрос города что-то вернул (если существует), тогда записываем в БД.
         await bot.send_message(message.chat.id, 'Такого города не существует')
     else:
         if not database.check_city_exists(conn, city_name):  # Если в БД нет такого города
@@ -222,5 +256,4 @@ async def add_city(message: types.Message, state: FSMContext):
 async def echo(message: types.Message):
     # old style:
     # await bot.send_message(message.chat.id, message.text)
-    await bot.send_message(message.chat.id, message.text)
-    await message.answer(message.text)
+    await bot.send_message(message.chat.id, 'Дурачок че пишешь введи /start и пользуйся')
