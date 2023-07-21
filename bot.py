@@ -254,6 +254,4 @@ async def add_city(message: types.Message, state: FSMContext):
 
 @dp.message_handler()
 async def echo(message: types.Message):
-    # old style:
-    # await bot.send_message(message.chat.id, message.text)
     await bot.send_message(message.chat.id, 'Дурачок че пишешь введи /start и пользуйся')
